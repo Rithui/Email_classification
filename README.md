@@ -39,3 +39,6 @@ The system is intended to help businesses automate email handling, categorize su
 ```bash
 git clone https://github.com/yourusername/email-classification-pii-handling.git
 cd email-classification-pii-handling
+
+
+###Step 2: Install Dependencies
