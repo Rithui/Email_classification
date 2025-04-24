@@ -1,4 +1,4 @@
-# Email Classification and PII Handling System
+# Email Classification and PII Handling System.
 
 This repository showcases an advanced email classification system built with **BERT**, capable of categorizing emails into specific categories (such as Refund Request, Password Recovery, Hardware Issues, etc.). Additionally, the system incorporates **PII (Personally Identifiable Information)** detection and masking to ensure data privacy and compliance with regulations.
 
