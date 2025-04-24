@@ -1,3 +1,4 @@
+# Importing required libraries
 import gradio as gr
 import json
 import zipfile
@@ -11,16 +12,19 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+# Adding the current directory to the system path if not already present
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.append(current_dir)
 
+# Initialize FastAPI app with metadata
 app = FastAPI(
     title="Email Classifier API",
     description="API for classifying emails and detecting PII",
     version="1.0.0"
 )
 
+# Enabling CORS to allow all origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,23 +33,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Define dataset and extraction paths
 zip_path = "data.zip"
 extract_path = "."
 dataset_path = os.path.join('./data', 'customer_support.csv')
 processed_dataset_path = os.path.join('./data', 'processed_customer_support.csv')
 
+# Handle fallback if data is in project root
 customer_support_path = os.path.join(current_dir, 'customer_support.csv')
 if os.path.exists(customer_support_path):
     dataset_path = customer_support_path
     processed_dataset_path = os.path.join(current_dir, 'processed_customer_support.csv')
     print(f"Using customer_support.csv dataset at {dataset_path}")
 else:
+    # Extract ZIP if no CSV found directly
     if os.path.exists(zip_path):
         try:
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 zip_ref.extractall(extract_path)
             print(f"Extracted data from {zip_path}")
             
+            # Try various paths to locate the extracted dataset
             possible_paths = [
                 './data/customer_support.csv',
                 './customer_support.csv',
@@ -65,10 +73,12 @@ else:
     else:
         print(f"Warning: Neither customer_support.csv nor data.zip found. Will use demo model.")
 
+# Define model and dataset variables
 model_path = './ticket_classifier_bert.pt'
 classifier = None
 processed_df = None
 
+# Try loading a preprocessed dataset if available
 if os.path.exists(processed_dataset_path):
     try:
         processed_df = pd.read_csv(processed_dataset_path)
@@ -76,20 +86,24 @@ if os.path.exists(processed_dataset_path):
     except Exception as e:
         print(f"Error loading processed dataset: {e}")
 
+# Create a demo model if no model file exists
 if not os.path.exists(model_path):
     try:
         print("Creating a simple model for production use...")
         import torch
         
         if os.path.exists(dataset_path):
+            # Load and preprocess the dataset
             X_train, X_val, y_train, y_val, reverse_mapping, df = load_and_preprocess_data(dataset_path)
             df.to_csv(processed_dataset_path, index=False)
             processed_df = df
             print(f"Created and saved processed dataset to {processed_dataset_path}")
             
+            # Prepare label mapping for model
             num_categories = len(reverse_mapping)
             label_map = reverse_mapping
         else:
+            # Default category map if dataset not found
             num_categories = 5
             label_map = {
                 0: "Incident", 
@@ -99,6 +113,7 @@ if not os.path.exists(model_path):
                 4: "Other"
             }
         
+        # Initialize and save a dummy BERT model
         demo_classifier = BERTEmailClassifier(num_categories)
         demo_classifier.label_map = label_map
         
@@ -112,6 +127,7 @@ if not os.path.exists(model_path):
     except Exception as e:
         print(f"Error creating model: {e}")
 
+# Attempt to load model if it exists
 if classifier is None:
     try:
         if os.path.exists(model_path):
@@ -124,6 +140,7 @@ if classifier is None:
         print(f"Error loading model: {e}")
         print("UI will start but classification will not work until a model is available")
 
+# Train model triggered from UI
 def train_model_from_ui():
     try:
         if os.path.exists(customer_support_path):
@@ -135,21 +152,24 @@ def train_model_from_ui():
         
         print(f"Training model using dataset: {dataset_to_use}")
         
+        # Preprocess data
         X_train, X_val, y_train, y_val, reverse_mapping, df = load_and_preprocess_data(dataset_to_use)
-        
         df.to_csv(processed_dataset_path, index=False)
         global processed_df
         processed_df = df
         print(f"Saved processed dataset to: {processed_dataset_path}")
         
+        # Reduce training size for quick training
         max_samples = min(300, len(X_train))
         X_train_small = X_train[:max_samples]
         y_train_small = y_train[:max_samples]
         
+        # Initialize new classifier
         num_labels = len(reverse_mapping)
         new_classifier = BERTEmailClassifier(num_labels)
         new_classifier.label_map = reverse_mapping
         
+        # Train the model
         print("Starting model training with enhanced features...")
         history = new_classifier.train(
             X_train_small, 
@@ -161,7 +181,6 @@ def train_model_from_ui():
         )
         
         new_classifier.save_model(model_path)
-        
         global classifier
         classifier = new_classifier
         
@@ -172,6 +191,7 @@ def train_model_from_ui():
         print(f"Error during training: {error_details}")
         return f"Error training model: {str(e)}. Consider using a pre-trained model instead."
 
+# Classify email and return results
 def classify_email(email_body):
     if not email_body.strip():
         return "Please enter an email to classify.", "", "", "", "", "", "", ""
@@ -190,6 +210,7 @@ def classify_email(email_body):
     
     result = process_email_with_pii_handling(classifier, email_body)
     
+    # Format extracted entities
     entities_table = []
     for entity in result["list_of_masked_entities"]:
         entities_table.append([
@@ -214,6 +235,7 @@ def classify_email(email_body):
         formatted_json
     )
 
+# FastAPI endpoint to classify an email via JSON POST
 @app.post("/api/classify")
 async def api_classify_email(request: Request):
     try:
@@ -242,6 +264,7 @@ async def api_classify_email(request: Request):
         try:
             result = process_email_with_pii_handling(classifier, email_text)
             
+            # Reformat result entities as JSON dictionary
             formatted_entities = {}
             for i, entity in enumerate(result["list_of_masked_entities"]):
                 formatted_entities[str(i)] = {
@@ -280,12 +303,20 @@ async def api_classify_email(request: Request):
             content={"error": f"Unexpected error: {str(e)}"}
         )
 
+# Endpoint for specific client integration
+@app.post("rithuikprakash/Intern ")
+async def classify_email_endpoint(request: Request):
+    """Endpoint to handle requests from email_client.py"""
+    return await api_classify_email(request)
+
+# Build Gradio UI
 def create_interface():
     with gr.Blocks(theme=gr.themes.Soft(primary_hue="blue")) as demo:
         gr.Markdown("# 📧 Smart Email Classifier & PII Detector")
         
         with gr.Tabs() as tabs:
             with gr.TabItem("Manual Email Processing"):
+                # Email input and submit button
                 with gr.Row():
                     with gr.Column(scale=2):
                         gr.Markdown("## ✍️ Input Email")
@@ -296,6 +327,7 @@ def create_interface():
                         )
                         submit_btn = gr.Button("Analyze Email", variant="primary", size="lg")
                     
+                    # Output columns
                     with gr.Column(scale=3):
                         gr.Markdown("## 🔍 Analysis Results")
                         
@@ -331,6 +363,7 @@ def create_interface():
                             json_output = gr.JSON()
             
             with gr.TabItem("Train Model"):
+                # Training interface
                 gr.Markdown("## 🧠 Train the Model")
                 train_btn = gr.Button("Train Model with customer_support.csv", variant="primary")
                 train_output = gr.Textbox(label="Training Output", lines=5)
@@ -346,6 +379,7 @@ def create_interface():
                 """)
             
             with gr.TabItem("API Documentation"):
+                # API documentation UI tab
                 gr.Markdown("""
                 ## 🔧 API Documentation
                 
@@ -379,6 +413,7 @@ def create_interface():
                 ```
                 """)
         
+        # Link button events with functions
         submit_btn.click(
             fn=classify_email,
             inputs=[email_input],
@@ -402,9 +437,11 @@ def create_interface():
     
     return demo
 
+# Mount Gradio UI to FastAPI
 demo = create_interface()
 app = gr.mount_gradio_app(app, demo, path="/")
 
+# Launch the app with Uvicorn
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=7860, log_level="info")
