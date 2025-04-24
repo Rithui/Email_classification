@@ -51,4 +51,4 @@ Step 3: Download SpaCy Model
 python -m spacy download en_core_web_sm
 ```
 
-f you have suggestions, ideas, or would like to contribute, feel free to open an issue or submit a pull request. Contributions are always welcome to improve this project!
+If you have suggestions, ideas, or would like to contribute, feel free to open an issue or submit a pull request. Contributions are always welcome to improve this project!
