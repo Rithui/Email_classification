@@ -51,4 +51,39 @@ Step 3: Download SpaCy Model
 python -m spacy download en_core_web_sm
 ```
 
+Automating Email Classification with Gmail
+You can connect your Gmail account to automatically classify incoming emails using this model.
+
+Step 1: Create .env File
+In the same directory where email_client.py and proxy_server.py are located, create a .env file with the following format:
+```env
+EMAIL_ADDRESS=your_email@gmail.com
+EMAIL_PASSWORD=your_app_specific_password
+```
+
+Step 2: Run the Email Client & Proxy Server Locally
+Open two terminal windows and run:
+
+Terminal 1 (Proxy Server):
+
+```env
+python proxy_server.py
+```
+Terminal 2 (Email Client):
+```env
+python email_client.py
+```
+What happens then:
+Connect to your Gmail inbox.
+
+Fetch new emails periodically.
+
+Classify them using the hosted model on Hugging Face Spaces.
+
+Mask sensitive PII before sending results to the client dashboard.
+
+
+
+
+
 If you have suggestions, ideas, or would like to contribute, feel free to open an issue or submit a pull request. Contributions are always welcome to improve this project!
