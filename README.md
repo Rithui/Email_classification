@@ -39,6 +39,16 @@ The system is intended to help businesses automate email handling, categorize su
 ```bash
 git clone https://github.com/yourusername/email-classification-pii-handling.git
 cd email-classification-pii-handling
+```
 
+Step 2: Install Dependencies
+```bash
+pip install -r requirements.txt
+```
 
-###Step 2: Install Dependencies
+Step 3: Download SpaCy Model
+```bash
+python -m spacy download en_core_web_sm
+```
+
+f you have suggestions, ideas, or would like to contribute, feel free to open an issue or submit a pull request. Contributions are always welcome to improve this project!
